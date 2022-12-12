@@ -9,9 +9,10 @@ import UIKit
 import RealmSwift
 import UserNotifications
 
-class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
+class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSource,UISearchBarDelegate {
     
     @IBOutlet weak var tableView: UITableView!
+    @IBOutlet weak var searchBar: UISearchBar!
     
     // Realmインスタンスを取得する
     let realm = try! Realm()
@@ -28,6 +29,8 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
         tableView.fillerRowHeight = UITableView.automaticDimension
         tableView.delegate = self
         tableView.dataSource = self
+        
+        searchBar.delegate = self
     }
     
     // データの数（＝セルの数、taskArrayの要素数）を返すメソッド
@@ -96,31 +99,43 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
             }
         }
     }
-    
-    // segue で画面遷移する時に呼ばれる
-    // segueのIDを指定して遷移させる
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?){
-        let inputViewController:InputViewController = segue.destination as! InputViewController
-        // セルをタップした時
-        if segue.identifier == "cellSegue" {
-            let indexPath = self.tableView.indexPathForSelectedRow
-            inputViewController.task = taskArray[indexPath!.row]
-        } else {
-            // +ボタンをタップした時
-            let task = Task()
-            
-            let allTasks = realm.objects(Task.self)
-            // すでに存在しているタスクのidのうち最大のものを取得し、1を足すことで他のidと重ならない値を指定
-            if allTasks.count != 0 {
-                task.id = allTasks.max(ofProperty: "id")! + 1
-            }
-            
-            inputViewController.task = task
-        }
-    }
-    // タスク作成/編集画面から戻ってきた時に TableView を更新させる
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar){
+        let searchText = searchBar.text!
+        let predicate = NSPredicate(format: "category == %@", searchText)
+        let newArray = try! Realm().objects(Task.self).filter(predicate)
+        taskArray = newArray
         tableView.reloadData()
     }
-}
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchBar.text?.count == 0 {
+            taskArray = try! Realm().objects(Task.self)
+            tableView.reloadData()
+        }
+    }
+        // segue で画面遷移する時に呼ばれる
+        // segueのIDを指定して遷移させる
+        override func prepare(for segue: UIStoryboardSegue, sender: Any?){
+            let inputViewController:InputViewController = segue.destination as! InputViewController
+            // セルをタップした時
+            if segue.identifier == "cellSegue" {
+                let indexPath = self.tableView.indexPathForSelectedRow
+                inputViewController.task = taskArray[indexPath!.row]
+            } else {
+                // +ボタンをタップした時
+                let task = Task()
+                
+                let allTasks = realm.objects(Task.self)
+                // すでに存在しているタスクのidのうち最大のものを取得し、1を足すことで他のidと重ならない値を指定
+                if allTasks.count != 0 {
+                    task.id = allTasks.max(ofProperty: "id")! + 1
+                }
+                
+                inputViewController.task = task
+            }
+        }
+        // タスク作成/編集画面から戻ってきた時に TableView を更新させる
+        override func viewWillAppear(_ animated: Bool) {
+            super.viewWillAppear(animated)
+            tableView.reloadData()
+        }
+    }
